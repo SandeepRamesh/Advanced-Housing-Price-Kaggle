@@ -241,8 +241,6 @@ x_train=x_train.drop(['HouseStyle_2.5Fin','Exterior2nd_Other','Exterior1st_Stone
 #Creating a train and test dataset for the original training set so that appropriate ML can be applied to test set later
 X=house_train.drop(['Id','SaleType','GarageCond','GarageQual','Functional','Electrical',
 'Heating','BsmtFinType2','Foundation','Condition1','Neighborhood','Street'],1)
-
-
 Y=np.log(house_train['SalePrice'])
 X=pd.get_dummies(X,drop_first=True)
 X=X.drop(['HouseStyle_2.5Fin'],1)
@@ -252,6 +250,7 @@ X=X.drop(['Exterior2nd_Other','Exterior1st_Stone','Exterior1st_ImStucc',
                       'Utilities_NoSeWa','SalePrice'],1)
 
 #Split of training set and check the results
+from sklearn.metrics import mean_squared_error
 from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(
                                     X, Y, random_state=42, test_size=.33)
@@ -260,7 +259,7 @@ from sklearn import linear_model
 lr = linear_model.LinearRegression()
 model = lr.fit(X_train, y_train)
 print ("R^2 is: \n", model.score(X_test, y_test))
-predictions = np.exp(model.predict(X_test))
+predictions = model.predict(X_test)
 from sklearn.metrics import mean_squared_error
 print ('RMSE is: \n', mean_squared_error(y_test, predictions))
 
@@ -280,9 +279,9 @@ RMSE is:
 from xgboost import XGBRegressor
 regressor = XGBRegressor()
 regressor=regressor.fit(X_train, y_train)
-print ("R^2 is: \n", model.score(X_test, y_test))
+print ("R^2 is: \n", regressor.score(X_test, y_test))
 # Predicting the Test set results
-predictions1 = np.exp(regressor.predict(X_test))
+predictions1 = regressor.predict(X_test)
 print ('RMSE is: \n', mean_squared_error(y_test, predictions1))
 '''
 Result of XGB
@@ -292,7 +291,7 @@ RMSE is:
  0.0139949162787
 '''
 from sklearn.ensemble import RandomForestRegressor
-regressor1 = RandomForestRegressor(n_estimators = 100, random_state = 0)
+regressor1 = RandomForestRegressor(n_estimators = 100, random_state = 42)
 regressor1.fit(X_train, y_train)
 print ("R^2 is: \n", model.score(X_test, y_test))
 # Predicting the Test set results
@@ -305,6 +304,21 @@ R^2 is:
 RMSE is: 
  0.0159458246303
  '''
+ 
+from sklearn.ensemble import ExtraTreesRegressor
+regressor2=ExtraTreesRegressor(n_estimators=100,random_state=42)
+regressor2.fit(X_train,y_train)
+print ("R^2 is: \n", regressor2.score(X_test, y_test))
+predictions3 = regressor2.predict(X_test)
+print ('RMSE is: \n', mean_squared_error(y_test, predictions3))
+
+'''
+R^2 is: 
+ 0.874417216696
+ RMSE is: 
+ 0.0176237203026
+ '''
+ 
 #Linear and XGB have been chosen. More algorithms will be tried later
 from sklearn import linear_model
 lr = linear_model.LinearRegression()
@@ -321,5 +335,3 @@ final=(predictions+predictions1)/2
 
 results=pd.DataFrame({"Id":house_test['Id'],"SalePrice":final})
 results.to_csv('Final_Output.csv',index=False)
-
-
