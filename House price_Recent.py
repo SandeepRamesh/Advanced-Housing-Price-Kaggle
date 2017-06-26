@@ -197,48 +197,129 @@ house_test['SaleType'] = house_test['SaleType'].fillna("WD")
 house_test['Exterior1st'] = house_test['Exterior1st'].fillna("VinylSd")
 
 
-#creating df for train and test and apply dummy variables
-#dropped few extra because of shape differences in train and test
-x_train=house_train.drop(['Id','SalePrice','Utilities','Condition2','RoofMatl'],1)
-y_train=house_train['SalePrice']
-x_test=house_test.drop(['Id'],1)
+#Use RFE method to extract the best features alone and drop the rest
 
-#convert categorical to numerical and avoid dummy variable trap
+import matplotlib.pyplot as plt
+from sklearn.svm import SVC
+from sklearn.model_selection import StratifiedKFold
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.feature_selection import RFECV
+regressor = RandomForestRegressor(n_estimators = 100, random_state = 0)
+rfecv = RFECV(estimator=regressor, step=1, cv=StratifiedKFold(3))
+rfecv.fit(x_train, y_train)
+print("Optimal number of features : %d" % rfecv.n_features_)
+
+# Plot number of features VS. cross-validation scores
+plt.figure()
+plt.xlabel("Number of features selected")
+plt.ylabel("Cross validation score (nb of correct classifications)")
+plt.plot(range(1, len(rfecv.grid_scores_) + 1), rfecv.grid_scores_)
+plt.show()
+cols=rfecv.ranking_
+#new dataframe with features and their rankings
+newcols=pd.DataFrame(x_train.columns,cols)
+
+#Dropping the features with relation to their rankings obtained above
+x_train=house_train.drop(['Id','SaleType','GarageCond','GarageQual','Functional','Electrical',
+'Heating','BsmtFinType2','Foundation','Condition1','Neighborhood','Street'],1)
+
+x_test=house_test.drop(['Id','SaleType','GarageCond','GarageQual','Functional','Electrical',
+'Heating','BsmtFinType2','Foundation','Condition1','Neighborhood','Street'],1)
+#Taking a log of Saleprice to transform 
+y_train=np.log(house_train['SalePrice'])
+#Creating dummy variables for categorical features
 x_train=pd.get_dummies(x_train,drop_first=True)
 x_test=pd.get_dummies(x_test,drop_first=True)
-x_train=x_train.drop(['HouseStyle_2.5Fin'],1)
-#Scaling the independent variables
-from sklearn.preprocessing import StandardScaler
-sc = StandardScaler()
-x_train = sc.fit_transform(x_train)
-x_test = sc.transform(x_test)
+
+#Dropping the extra features since train and test had mismatch 
+x_train=x_train.drop(['HouseStyle_2.5Fin','Exterior2nd_Other','Exterior1st_Stone','Exterior1st_ImStucc',
+                      'RoofMatl_Roll','RoofMatl_Metal','RoofMatl_Membran',
+                      'Condition2_RRAe','Condition2_RRAn','Condition2_RRNn',
+                      'Utilities_NoSeWa','SalePrice'],1)
 
 
-from sklearn import metrics
-from sklearn.decomposition import PCA
-pca = PCA(n_components = None)
-#Change it to required component after getting the most variance of the dataset
-x_train = pca.fit_transform(x_train)
-x_test = pca.transform(x_test)
-explained_variance = pca.explained_variance_ratio_
+#Creating a train and test dataset for the original training set so that appropriate ML can be applied to test set later
+X=house_train.drop(['Id','SaleType','GarageCond','GarageQual','Functional','Electrical',
+'Heating','BsmtFinType2','Foundation','Condition1','Neighborhood','Street'],1)
 
-sns.set()
-pca = PCA().fit(x_train)
-plt.plot(np.cumsum(pca.explained_variance_ratio_))
-plt.xlabel('number of components')
-plt.ylabel('cumulative explained variance')
+
+Y=np.log(house_train['SalePrice'])
+X=pd.get_dummies(X,drop_first=True)
+X=X.drop(['HouseStyle_2.5Fin'],1)
+X=X.drop(['Exterior2nd_Other','Exterior1st_Stone','Exterior1st_ImStucc',
+                      'RoofMatl_Roll','RoofMatl_Metal','RoofMatl_Membran',
+                      'Condition2_RRAe','Condition2_RRAn','Condition2_RRNn',
+                      'Utilities_NoSeWa','SalePrice'],1)
+
+#Split of training set and check the results
+from sklearn.model_selection import train_test_split
+X_train, X_test, y_train, y_test = train_test_split(
+                                    X, Y, random_state=42, test_size=.33)
+
+from sklearn import linear_model
+lr = linear_model.LinearRegression()
+model = lr.fit(X_train, y_train)
+print ("R^2 is: \n", model.score(X_test, y_test))
+predictions = np.exp(model.predict(X_test))
+from sklearn.metrics import mean_squared_error
+print ('RMSE is: \n', mean_squared_error(y_test, predictions))
+
+actual_values = y_test
+plt.scatter(predictions, actual_values, alpha=.75,color='b') 
+plt.xlabel('Predicted Price')
+plt.ylabel('Actual Price')
+plt.title('Linear Regression Model')
+plt.show()
+'''
+Result of Linear:
+R^2 is: 
+ 0.899040551834
+RMSE is: 
+ 0.0141681927217
+'''
+from xgboost import XGBRegressor
+regressor = XGBRegressor()
+regressor=regressor.fit(X_train, y_train)
+print ("R^2 is: \n", model.score(X_test, y_test))
+# Predicting the Test set results
+predictions1 = np.exp(regressor.predict(X_test))
+print ('RMSE is: \n', mean_squared_error(y_test, predictions1))
+'''
+Result of XGB
+R^2 is: 
+ 0.899040551834
+RMSE is: 
+ 0.0139949162787
+'''
+from sklearn.ensemble import RandomForestRegressor
+regressor1 = RandomForestRegressor(n_estimators = 100, random_state = 0)
+regressor1.fit(X_train, y_train)
+print ("R^2 is: \n", model.score(X_test, y_test))
+# Predicting the Test set results
+predictions2 = regressor1.predict(X_test)
+print ('RMSE is: \n', mean_squared_error(y_test, predictions2))
+'''
+Result of Random Forest
+R^2 is: 
+ 0.899040551834
+RMSE is: 
+ 0.0159458246303
+ '''
+#Linear and XGB have been chosen. More algorithms will be tried later
+from sklearn import linear_model
+lr = linear_model.LinearRegression()
+model = lr.fit(x_train, y_train)
+#Exponential taken to get the inverse of Log
+predictions = np.exp(model.predict(x_test))
 
 from xgboost import XGBRegressor
-regressor1 = XGBRegressor()
-regressor1=regressor1.fit(x_train, y_train)
-# Predicting the Test set results
-y_pred1 = regressor1.predict(x_test)
+regressor = XGBRegressor()
+regressor=regressor.fit(x_train, y_train)
+predictions1 = np.exp(regressor.predict(x_test))
+#averaging the best 2 for final result
+final=(predictions+predictions1)/2
 
-
-results=pd.DataFrame({"Id":house_test['Id'],"SalePrice":y_pred1})
+results=pd.DataFrame({"Id":house_test['Id'],"SalePrice":final})
 results.to_csv('Final_Output.csv',index=False)
-
-
-
 
 
