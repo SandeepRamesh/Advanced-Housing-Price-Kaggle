@@ -255,6 +255,18 @@ from sklearn.model_selection import train_test_split
 X_train, X_test, y_train, y_test = train_test_split(
                                     X, Y, random_state=42, test_size=.33)
 
+from sklearn.linear_model import ElasticNet
+clf2 = ElasticNet(alpha=0.0004, l1_ratio=1.2)
+
+clf2.fit(X_train, y_train)
+print ("R^2 is: \n", clf2.score(X_test, y_test))
+elas_preds = clf2.predict(X_test)
+print ('RMSE is: \n', mean_squared_error(y_test, elas_preds))
+'''
+RMSE is: 
+ 0.0132014324009
+ '''
+
 from sklearn import linear_model
 lr = linear_model.LinearRegression()
 model = lr.fit(X_train, y_train)
@@ -276,6 +288,8 @@ R^2 is:
 RMSE is: 
  0.0141681927217
 '''
+
+
 from xgboost import XGBRegressor
 regressor = XGBRegressor()
 regressor=regressor.fit(X_train, y_train)
@@ -283,6 +297,7 @@ print ("R^2 is: \n", regressor.score(X_test, y_test))
 # Predicting the Test set results
 predictions1 = regressor.predict(X_test)
 print ('RMSE is: \n', mean_squared_error(y_test, predictions1))
+
 '''
 Result of XGB
 R^2 is: 
@@ -290,6 +305,24 @@ R^2 is:
 RMSE is: 
  0.0139949162787
 '''
+
+from sklearn.model_selection import GridSearchCV
+parameters = [{'max_depth': [10,20,30],
+                'learning_rate': [0.05,0.07,1.0],
+                'n_estimators':[50,100,200,150],
+                'gamma':[0.03,0.04,0.05],
+                'reg_alpha':[0.2,0.4,0.6,0],
+                'reg_lambda':[0.2,0.4,0.6,1]}
+             ]
+grid_search = GridSearchCV(estimator = regressor,
+                           param_grid = parameters,
+                           scoring = None,
+                           cv = 10,
+                           n_jobs = -1)
+grid_search = grid_search.fit(X_train, y_train)
+best_accuracy = grid_search.best_score_
+best_parameters = grid_search.best_params_
+
 from sklearn.ensemble import RandomForestRegressor
 regressor1 = RandomForestRegressor(n_estimators = 100, random_state = 42)
 regressor1.fit(X_train, y_train)
@@ -330,8 +363,17 @@ from xgboost import XGBRegressor
 regressor = XGBRegressor()
 regressor=regressor.fit(x_train, y_train)
 predictions1 = np.exp(regressor.predict(x_test))
+
+from sklearn.linear_model import ElasticNet
+clf2 = ElasticNet(alpha=0.0004, l1_ratio=1.2)
+clf2.fit(x_train, y_train)
+elas_preds = np.exp(clf2.predict(x_test))
+
+
 #averaging the best 2 for final result
-final=(predictions+predictions1)/2
+final=(elas_preds+predictions1)/2
 
 results=pd.DataFrame({"Id":house_test['Id'],"SalePrice":final})
 results.to_csv('Final_Output.csv',index=False)
+
+
