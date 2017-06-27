@@ -310,6 +310,7 @@ from sklearn.model_selection import GridSearchCV
 parameters = [{'max_depth': [10,20,30],
                 'learning_rate': [0.05,0.07,1.0],
                 'n_estimators':[50,100,200,150],
+               # 'booster':['gbtree','gblinear','dart'],
                 'gamma':[0.03,0.04,0.05],
                 'reg_alpha':[0.2,0.4,0.6,0],
                 'reg_lambda':[0.2,0.4,0.6,1]}
@@ -352,7 +353,7 @@ R^2 is:
  0.0176237203026
  '''
  
-#Linear and XGB have been chosen. More algorithms will be tried later
+#ElasticNet has been chosen as it gave the best predictions. More algorithms will be tried later
 from sklearn import linear_model
 lr = linear_model.LinearRegression()
 model = lr.fit(x_train, y_train)
@@ -371,9 +372,7 @@ elas_preds = np.exp(clf2.predict(x_test))
 
 
 #averaging the best 2 for final result
-final=(elas_preds+predictions1)/2
+#final=(elas_preds+predictions1)/2
 
-results=pd.DataFrame({"Id":house_test['Id'],"SalePrice":final})
+results=pd.DataFrame({"Id":house_test['Id'],"SalePrice":elas_preds})
 results.to_csv('Final_Output.csv',index=False)
-
-
